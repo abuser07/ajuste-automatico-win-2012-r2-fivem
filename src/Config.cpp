@@ -65,6 +65,27 @@ VCRedistX86Url=https://aka.ms/vs/16/release/vc_redist.x86.exe
 DotNet48Url=https://go.microsoft.com/fwlink/?linkid=2088631
 DepsDir=deps
 
+[Extras]
+; Ferramentas basicas baixadas e instaladas durante o --apply. Todas sao
+; verificadas com Authenticode (RequireSignedDependencies=1).
+InstallChrome=1
+; O Chrome 109 foi a ultima versao compativel com o Server 2012 R2. O link abaixo
+; aponta para o MSI Enterprise mais recente (Windows 10+). No 2012 R2, aponte
+; ChromeUrl para um MSI Enterprise 109 (assinado por Google LLC).
+ChromeUrl=https://dl.google.com/tag/s/dl/chrome/install/googlechromestandaloneenterprise64.msi
+ChromeExpectedPublisher=Google LLC
+InstallNodeJs=1
+; Node 18.x e a ultima linha com suporte ao Server 2012 R2 (18.20.8 = ultimo LTS).
+NodeJsUrl=https://nodejs.org/dist/v18.20.8/node-v18.20.8-x64.msi
+NodeJsExpectedPublisher=OpenJS Foundation
+InstallGit=0
+; Git for Windows. Confirme a versao compativel com o 2012 R2 antes de ativar.
+GitUrl=https://github.com/git-for-windows/git/releases/download/v2.42.0.windows.2/Git-2.42.0.2-64-bit.exe
+GitExpectedPublisher=
+InstallSevenZip=0
+SevenZipUrl=https://www.7-zip.org/a/7z2301-x64.exe
+SevenZipExpectedPublisher=
+
 [Seguranca]
 ; Habilita TLS 1.2 para Schannel, .NET e WinHTTP.
 HardenTLS=1

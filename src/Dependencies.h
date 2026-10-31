@@ -21,6 +21,15 @@ void GetDependencyState(DependencyState& state);
 // Instala o runtime VC++ 14.29 (x64/x86) e, se configurado, o .NET Framework 4.8.
 bool InstallDependencies(const Config& cfg, bool& rebootRequired, std::wstring& error);
 
+// Deteccao de ferramentas extras (usada no diagnostico e na instalacao).
+bool IsChromeInstalled();
+bool IsNodeInstalled();
+bool IsGitInstalled();
+bool IsSevenZipInstalled();
+
+// Instala ferramentas basicas (Chrome, Node.js, Git, 7-Zip) conforme o config.ini.
+bool InstallExtraTools(const Config& cfg, bool& rebootRequired, std::wstring& error);
+
 struct FiveMServerBuild {
     std::wstring version;
     std::wstring recommendedUrl;

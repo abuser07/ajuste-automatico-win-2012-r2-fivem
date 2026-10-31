@@ -46,7 +46,8 @@ O rollback restaura o que foi registrado no backup:
 - política do Firefox;
 - plano de energia ativo.
 
-Ele **não** desinstala o VC++ Redistributable/.NET, não apaga downloads, não remove
+Ele **não** desinstala o VC++ Redistributable/.NET, não desinstala Chrome/Node/Git/7-Zip,
+não apaga downloads, não remove
 arquivos do servidor e não restaura o estado ligado/desligado dos perfis de firewall.
 Para uma reversão completa, use snapshot da VM ou backup do sistema.
 
@@ -66,6 +67,7 @@ túnel SSH, senha forte e proteção adicional.
 | Segurança | TLS 1.2, desativação opcional de TLS 1.0/1.1, SSL 2.0/3.0, SMBv1, assinatura SMB, NLA no RDP, NTLMv2, Guest, AutoRun, exibição do último usuário, exclusões do Defender e plano de energia |
 | Firewall | Regras TCP/UDP para a porta do jogo, txAdmin restrito, portas extras opcionais e regra de RDP preventiva |
 | Dependências | VC++ Redistributable 2015-2022 14.29 (x64/x86), .NET Framework 4.8 opcional, verificação de assinatura Authenticode |
+| Ferramentas extras | Chrome, Node.js, Git for Windows e 7-Zip (download + instalação silenciosa) |
 | Navegadores | IE, Chrome, Edge e Firefox: página inicial, TLS mínimo, navegação segura e sites confiáveis |
 | Servidor FiveM | Pastas, `server.cfg`, `server.cfg.example`, `start-server.cmd`, leia-me e download opcional do FXServer/cfx-server-data |
 | Rollback | Registro, firewall, Guest, política do Firefox e plano de energia |
@@ -168,7 +170,7 @@ Também é possível executar sem argumentos para abrir o menu interativo.
 | Ação | Descrição |
 |---|---|
 | `--report` | Diagnóstico completo, somente leitura. Pode consultar o IP público. |
-| `--apply` | Cria backup e aplica firewall, navegador, segurança, dependências e preparação do servidor. Exige administrador. |
+| `--apply` | Cria backup e aplica firewall, navegador, segurança, dependências, ferramentas extras e preparação do servidor. Exige administrador. |
 | `--setup-server` | Prepara pastas, `server.cfg`, `start-server.cmd` e leia-me. |
 | `--download-server` | Prepara o servidor e força o download dos artefatos do FXServer **e** do cfx-server-data. Define implicitamente `--setup-server`. |
 | `--verify` | Executa o diagnóstico pós-ajustes e salva um relatório. |
@@ -266,6 +268,32 @@ não existir. Ele é dividido nas seções abaixo.
 O FiveMGuard verifica a assinatura digital e o editor antes de executar instaladores.
 Não desative `RequireSignedDependencies` sem substituir as URLs por fontes confiáveis.
 
+### `[Extras]`
+
+Ferramentas básicas baixadas e instaladas durante o `--apply`. Todas exigem assinatura
+Authenticode válida.
+
+| Chave | Padrão | Descrição |
+|---|---:|---|
+| `InstallChrome` | `1` | Baixa e instala o Google Chrome (MSI Enterprise). |
+| `ChromeUrl` | URL | Origem do instalador do Chrome. |
+| `ChromeExpectedPublisher` | `Google LLC` | Editor esperado da assinatura (vazio = só Authenticode). |
+| `InstallNodeJs` | `1` | Baixa e instala o Node.js (MSI). |
+| `NodeJsUrl` | URL | Origem do instalador do Node.js. |
+| `NodeJsExpectedPublisher` | `OpenJS Foundation` | Editor esperado da assinatura. |
+| `InstallGit` | `0` | Baixa e instala o Git for Windows (EXE). |
+| `GitUrl` | URL | Origem do instalador do Git. |
+| `GitExpectedPublisher` | vazio | Editor esperado (vazio = só Authenticode). |
+| `InstallSevenZip` | `0` | Baixa e instala o 7-Zip (EXE). |
+| `SevenZipUrl` | URL | Origem do instalador do 7-Zip. |
+| `SevenZipExpectedPublisher` | vazio | Editor esperado (vazio = só Authenticode). |
+
+> **Compatibilidade com o Server 2012 R2:** o Google Chrome 109 foi a última versão
+> compatível com o Windows 8.1/Server 2012 R2; o link padrão aponta para o MSI
+> Enterprise mais recente (Windows 10+). No 2012 R2, aponte `ChromeUrl` para um MSI
+> Chrome 109 assinado por Google LLC ou desative com `InstallChrome=0`. O Node.js 18.x
+> é a última linha com suporte ao 2012 R2 (18.20.8 é o último LTS).
+
 ### `[Seguranca]`
 
 | Chave | Padrão | Descrição |
@@ -362,6 +390,15 @@ O estado ligado/desligado dos perfis de firewall é preservado, a menos que
 - .NET Framework 4.8 apenas se `InstallDotNet48=1`;
 - instaladores baixados em `deps\` e verificados com Authenticode;
 - logs dos instaladores em `deps\vc_redist.*.log` e `deps\ndp48*.log`.
+
+### Ferramentas extras
+
+- Google Chrome (MSI Enterprise) e Node.js (MSI), habilitados por padrão;
+- Git for Windows e 7-Zip, desabilitados por padrão (ative em `[Extras]`);
+- todos baixados em `deps\`, verificados com Authenticode e, quando configurado, com o
+  editor esperado;
+- instalados silenciosamente (MSI via `msiexec /qn`, EXE com argumentos próprios);
+- detecção pós-instalação; se não detectado, um reinício pode ser necessário.
 
 ### Navegadores
 
@@ -528,6 +565,17 @@ forçar (não recomendado), defina `AllowUnsupportedOS=1`.
 Verifique internet, proxy, data e hora do sistema. O programa recusa instaladores sem
 assinatura Authenticode válida. Não desative `RequireSignedDependencies` em produção.
 
+### Falha ao instalar Chrome, Node.js, Git ou 7-Zip
+
+- Confirme internet e a URL em `[Extras]`; o download e a assinatura são registrados no log.
+- Se a assinatura for de editor diferente, ajuste `*ExpectedPublisher` ou deixe vazio
+  (só Authenticode). O editor real é mostrado no log quando há divergência.
+- No Server 2012 R2, o Chrome precisa ser a versão 109 (última compatível). Aponte
+  `ChromeUrl` para um MSI Enterprise 109 assinado por Google LLC.
+- Git e 7-Zip são desabilitados por padrão; ative e confirme a versão compatível.
+- Após a instalação, um reinício pode ser necessário para que a detecção reconheça a
+  ferramenta (o log avisa quando isso acontece).
+
 ### O firewall bloqueou o RDP
 
 Use o console da VM/hypervisor para acessar o servidor, revise as regras
@@ -567,7 +615,7 @@ src\
 ├── SystemInfo.*    diagnóstico do sistema, rede, runtime e navegadores
 ├── Firewall.*      wrapper COM do Windows Firewall
 ├── Policies.*      políticas de segurança, navegador e firewall
-├── Dependencies.*  VC++/.NET, downloads e extração de ZIP
+├── Dependencies.*  VC++/.NET, ferramentas extras, downloads e extração de ZIP
 ├── ServerSetup.*   pastas, server.cfg e downloads do FiveM
 └── main.cpp        CLI, menu, diagnóstico, aplicação e rollback
 resources\

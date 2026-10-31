@@ -95,6 +95,8 @@ revise principalmente:
 - `[Seguranca] DisableLegacyTLS` — padrão `0`; ativar pode quebrar aplicativos antigos;
 - `[Navegador] DisableIEESC` — padrão `1`; desativa o IE ESC (administradores e usuários);
 - `[Dependencias] InstallDotNet48` — padrão `0`;
+- `[Extras] InstallChrome` / `InstallNodeJs` — padrão `1`; baixa e instala Chrome e Node.js;
+- `[Extras] InstallGit` / `InstallSevenZip` — padrão `0`;
 - `[Servidor] ServerRoot` — padrão `C:\FXServer`;
 - `[Geral] AllowUnsupportedOS` — padrão `0`; não use em produção.
 

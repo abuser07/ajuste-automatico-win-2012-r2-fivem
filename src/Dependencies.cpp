@@ -375,6 +375,275 @@ bool InstallDependencies(const Config& cfg, bool& rebootRequired, std::wstring& 
     return ok;
 }
 
+// ------------------------------------------------------------------ extras
+bool IsChromeInstalled() { return !FindChromePath().empty(); }
+
+bool IsNodeInstalled() {
+    std::wstring path;
+    if (RegGetString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Node.js", L"InstallPath", path) &&
+        !path.empty()) {
+        return FileExists(JoinPath(path, L"node.exe"));
+    }
+    std::wstring programFiles = GetEnvVar(L"ProgramFiles");
+    return FileExists(JoinPath(programFiles, L"nodejs\\node.exe"));
+}
+
+bool IsGitInstalled() {
+    std::wstring path;
+    if (RegGetString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\GitForWindows", L"InstallPath", path) &&
+        !path.empty()) {
+        return FileExists(JoinPath(path, L"cmd\\git.exe")) ||
+               FileExists(JoinPath(path, L"bin\\git.exe"));
+    }
+    std::wstring programFiles = GetEnvVar(L"ProgramFiles");
+    return FileExists(JoinPath(programFiles, L"Git\\cmd\\git.exe"));
+}
+
+bool IsSevenZipInstalled() {
+    std::wstring path;
+    if (RegGetString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\7-Zip", L"Path", path) && !path.empty()) {
+        return FileExists(JoinPath(path, L"7z.exe"));
+    }
+    std::wstring programFiles = GetEnvVar(L"ProgramFiles");
+    return FileExists(JoinPath(programFiles, L"7-Zip\\7z.exe"));
+}
+
+static bool VerifyAnySignedFile(const std::wstring& path,
+                                const std::wstring& expectedPublisher,
+                                std::wstring& error) {
+    error.clear();
+    std::wstring signError;
+    if (!VerifyAuthenticode(path, signError)) {
+        error = L"assinatura Authenticode invalida ou ausente: " + signError;
+        return false;
+    }
+    if (expectedPublisher.empty()) {
+        g_log.Detail(L"Assinatura Authenticode valida (editor nao verificado).");
+        return true;
+    }
+    std::wstring publisher;
+    if (!GetSignaturePublisher(path, publisher, signError)) {
+        error = L"nao foi possivel identificar o editor: " + signError;
+        return false;
+    }
+    if (!ContainsI(publisher, expectedPublisher)) {
+        error = L"editor inesperado: " + publisher + L" (esperado " + expectedPublisher +
+                L"). Ajuste a chave correspondente no config.ini.";
+        return false;
+    }
+    g_log.Detail(L"Assinatura valida. Editor: " + publisher);
+    return true;
+}
+
+static bool ObtainSignedInstaller(const Config& cfg, const std::wstring& url,
+                                  const std::wstring& destination,
+                                  const std::wstring& label,
+                                  const std::wstring& expectedPublisher,
+                                  std::wstring& error) {
+    bool requireSignature = cfg.GetBool(L"Dependencias", L"RequireSignedDependencies", true);
+
+    if (FileExists(destination) && FileSize(destination) > 128 * 1024) {
+        if (!requireSignature) {
+            g_log.Info(L"Usando arquivo em cache: " + destination);
+            return true;
+        }
+        std::wstring signError;
+        if (VerifyAnySignedFile(destination, expectedPublisher, signError)) {
+            g_log.Info(L"Usando arquivo em cache assinado: " + destination);
+            return true;
+        }
+        g_log.Warn(L"Arquivo em cache invalido; baixando novamente: " + signError);
+        RemoveFile(destination);
+    }
+
+    g_log.Step(L"Baixando " + label + L"...");
+    if (!DownloadFile(url, destination, error)) {
+        error = L"falha ao baixar " + label + L": " + error;
+        return false;
+    }
+    if (!FileExists(destination) || FileSize(destination) < 128 * 1024) {
+        error = label + L": download suspeito (arquivo muito pequeno).";
+        RemoveFile(destination);
+        return false;
+    }
+
+    if (requireSignature) {
+        std::wstring signError;
+        if (!VerifyAnySignedFile(destination, expectedPublisher, signError)) {
+            error = label + L": " + signError;
+            RemoveFile(destination);
+            return false;
+        }
+    } else {
+        g_log.Warn(L"RequireSignedDependencies=0: assinatura de " + label + L" nao exigida.");
+    }
+
+    g_log.Ok(label + L" baixado (" + FormatBytes(FileSize(destination)) + L").");
+    return true;
+}
+
+struct ExtraTool {
+    const wchar_t* enableKey;
+    const wchar_t* urlKey;
+    const wchar_t* publisherKey;
+    const wchar_t* label;
+    const wchar_t* fileName;
+    const wchar_t* defaultUrl;
+    const wchar_t* defaultPublisher;
+    const wchar_t* note;
+    bool msi;
+    bool defaultEnabled;
+    const wchar_t* exeArgs;
+    bool (*installed)();
+};
+
+static bool InstallExtraTool(const Config& cfg, const ExtraTool& tool, bool& rebootRequired,
+                             std::wstring& error) {
+    if (tool.installed()) {
+        g_log.Ok(std::wstring(tool.label) + L" ja instalado.");
+        return true;
+    }
+    g_log.Warn(std::wstring(tool.label) + L" nao detectado.");
+    if (tool.note) g_log.Warn(tool.note);
+
+    if (g_log.DryRun()) {
+        g_log.Step(std::wstring(L"Baixaria e instalaria ") + tool.label + L".");
+        return true;
+    }
+    if (!IsUserAdmin()) {
+        AppendError(error, L"sem privilegios de administrador para instalar " +
+                               std::wstring(tool.label) + L".");
+        g_log.Error(L"Sem privilegios para instalar " + std::wstring(tool.label) + L".");
+        return false;
+    }
+
+    std::wstring url = cfg.GetString(L"Extras", tool.urlKey, tool.defaultUrl);
+    if (url.empty()) {
+        AppendError(error, std::wstring(tool.label) + L": URL nao configurada.");
+        g_log.Error(std::wstring(tool.label) + L": URL nao configurada.");
+        return false;
+    }
+    if (!StartsWithI(url, L"https://")) {
+        AppendError(error, std::wstring(tool.label) + L": URL deve usar HTTPS.");
+        g_log.Error(std::wstring(tool.label) + L": URL deve usar HTTPS.");
+        return false;
+    }
+
+    std::wstring depsDir = cfg.GetPath(L"Dependencias", L"DepsDir", L"deps");
+    if (depsDir.empty()) depsDir = JoinPath(ExeDir(), L"deps");
+    if (!EnsureDir(depsDir)) {
+        AppendError(error, L"nao foi possivel criar " + depsDir);
+        return false;
+    }
+
+    std::wstring installer = JoinPath(depsDir, tool.fileName);
+    std::wstring expectedPublisher = cfg.GetString(L"Extras", tool.publisherKey, tool.defaultPublisher);
+    std::wstring downloadError;
+    if (!ObtainSignedInstaller(cfg, url, installer, tool.label, expectedPublisher,
+                               downloadError)) {
+        AppendError(error, downloadError);
+        g_log.Error(downloadError);
+        return false;
+    }
+
+    std::wstring installLog = JoinPath(depsDir, std::wstring(tool.fileName) + L".log");
+    RemoveFile(installLog);
+
+    std::wstring command;
+    if (tool.msi) {
+        std::wstring msiexec = JoinPath(GetEnvVar(L"SystemRoot"), L"System32\\msiexec.exe");
+        command = QuoteArg(msiexec) + L" /i " + QuoteArg(installer) +
+                  L" /qn /norestart /log " + QuoteArg(installLog);
+    } else {
+        command = QuoteArg(installer) + L" " + (tool.exeArgs ? tool.exeArgs : L"");
+    }
+    g_log.Step(L"Instalando " + std::wstring(tool.label) + L" (pode levar alguns minutos)...");
+
+    ProcessResult result;
+    if (!RunProcess(command, depsDir, 20 * 60 * 1000, result)) {
+        AppendError(error, L"nao foi possivel iniciar o instalador de " +
+                               std::wstring(tool.label) + L": " + result.output);
+        g_log.Error(L"Falha ao iniciar o instalador de " + std::wstring(tool.label) + L".");
+        return false;
+    }
+    if (result.timedOut) {
+        AppendError(error, L"instalacao de " + std::wstring(tool.label) + L" excedeu o tempo limite.");
+        g_log.Error(L"Instalacao de " + std::wstring(tool.label) + L" excedeu o tempo limite.");
+        return false;
+    }
+    if (!InstallerExitOk(result.exitCode)) {
+        wchar_t code[64];
+        swprintf(code, 64, L"%lu", (unsigned long)result.exitCode);
+        AppendError(error, L"instalador de " + std::wstring(tool.label) + L" retornou codigo " +
+                               std::wstring(code) + L".");
+        g_log.Error(L"Instalador de " + std::wstring(tool.label) + L" retornou codigo " +
+                    std::wstring(code) + L".");
+        if (!result.output.empty()) g_log.Detail(Tail(result.output, 800));
+        return false;
+    }
+
+    if (InstallerWantsReboot(result.exitCode)) rebootRequired = true;
+    if (tool.installed()) {
+        g_log.Ok(std::wstring(tool.label) + L" instalado com sucesso.");
+    } else {
+        g_log.Warn(std::wstring(tool.label) + L" foi instalado, mas ainda nao foi detectado. "
+                   L"Um reinicio pode ser necessario.");
+    }
+    return true;
+}
+
+bool InstallExtraTools(const Config& cfg, bool& rebootRequired, std::wstring& error) {
+    error.clear();
+    rebootRequired = false;
+
+    static const ExtraTool tools[] = {
+        {L"InstallChrome", L"ChromeUrl", L"ChromeExpectedPublisher",
+         L"Google Chrome", L"chrome-enterprise64.msi",
+         L"https://dl.google.com/tag/s/dl/chrome/install/googlechromestandaloneenterprise64.msi",
+         L"Google LLC",
+         L"AVISO: o Chrome 109 foi a ultima versao compativel com o Server 2012 R2. "
+         L"Se a instalacao falhar, aponte ChromeUrl para um MSI Enterprise 109 (assinado por Google LLC).",
+         true, true, nullptr, IsChromeInstalled},
+        {L"InstallNodeJs", L"NodeJsUrl", L"NodeJsExpectedPublisher",
+         L"Node.js", L"node-x64.msi",
+         L"https://nodejs.org/dist/v18.20.8/node-v18.20.8-x64.msi",
+         L"OpenJS Foundation",
+         L"Node 18.x e a ultima linha com suporte ao Server 2012 R2.",
+         true, true, nullptr, IsNodeInstalled},
+        {L"InstallGit", L"GitUrl", L"GitExpectedPublisher",
+         L"Git for Windows", L"Git-64-bit.exe",
+         L"https://github.com/git-for-windows/git/releases/download/v2.42.0.windows.2/Git-2.42.0.2-64-bit.exe",
+         L"",
+         L"Verifique a versao do Git compativel com o Server 2012 R2 antes de ativar.",
+         false, false, L"/VERYSILENT /NORESTART /NOCANCEL /SP-", IsGitInstalled},
+        {L"InstallSevenZip", L"SevenZipUrl", L"SevenZipExpectedPublisher",
+         L"7-Zip", L"7z-x64.exe",
+         L"https://www.7-zip.org/a/7z2301-x64.exe",
+         L"",
+         nullptr,
+         false, false, L"/S", IsSevenZipInstalled},
+    };
+
+    bool ok = true;
+    bool any = false;
+    for (const auto& tool : tools) {
+        if (!cfg.GetBool(L"Extras", tool.enableKey, tool.defaultEnabled)) {
+            g_log.Info(std::wstring(tool.enableKey) + L"=0: " + tool.label +
+                       L" nao sera instalado.");
+            continue;
+        }
+        any = true;
+        if (!InstallExtraTool(cfg, tool, rebootRequired, error)) ok = false;
+    }
+
+    if (!any) {
+        g_log.Info(L"Nenhuma ferramenta extra habilitada no config.ini.");
+    } else if (ok) {
+        g_log.Ok(L"Ferramentas extras verificadas/instaladas.");
+    }
+    return ok;
+}
+
 // ------------------------------------------------------------------ JSON
 static bool JsonFindString(const std::string& json, const std::string& key, std::string& out) {
     out.clear();

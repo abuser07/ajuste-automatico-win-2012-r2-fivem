@@ -55,7 +55,7 @@ void PrintUsage() {
     wprintf(L"  FiveMGuard.exe [acao] [opcoes]\n\n");
     wprintf(L"ACOES:\n");
     wprintf(L"  --report              Diagnostico completo (nao altera nada)\n");
-    wprintf(L"  --apply               Aplica seguranca, firewall, navegador, dependencias e servidor\n");
+    wprintf(L"  --apply               Aplica seguranca, firewall, navegador, dependencias, extras e servidor\n");
     wprintf(L"  --setup-server        Prepara pastas, server.cfg, start-server.cmd e leia-me\n");
     wprintf(L"  --download-server     Prepara e baixa artefatos do FXServer + cfx-server-data\n");
     wprintf(L"  --verify              Verifica o estado atual (pos-ajustes)\n");
@@ -524,6 +524,10 @@ void RunDiagnostics(Report& report, bool postApply) {
         report.Info(L".NET Framework: " + dep.dotNetLabel +
                     L" (4.8 e opcional; necessario apenas para recursos em C#).");
     }
+    report.Info(L"Ferramentas extras: Chrome=" + BoolText(IsChromeInstalled()) +
+                L", Node.js=" + BoolText(IsNodeInstalled()) +
+                L", Git=" + BoolText(IsGitInstalled()) +
+                L", 7-Zip=" + BoolText(IsSevenZipInstalled()) + L".");
     report.Info(L"Windows Defender: " + GetDefenderSummary());
     for (const wchar_t* service : {L"BFE", L"MpsSvc"}) {
         ServiceInfo info;
@@ -1488,6 +1492,14 @@ void PrintApplySummary() {
                BoolText(g_cfg.GetBool(L"Dependencias", L"InstallVCRedist", true)) +
                L", .NET 4.8=" +
                BoolText(g_cfg.GetBool(L"Dependencias", L"InstallDotNet48", false)));
+    g_log.Info(L"Extras: Chrome=" +
+               BoolText(g_cfg.GetBool(L"Extras", L"InstallChrome", true)) +
+               L", Node.js=" +
+               BoolText(g_cfg.GetBool(L"Extras", L"InstallNodeJs", true)) +
+               L", Git=" +
+               BoolText(g_cfg.GetBool(L"Extras", L"InstallGit", false)) +
+               L", 7-Zip=" +
+               BoolText(g_cfg.GetBool(L"Extras", L"InstallSevenZip", false)));
     g_log.Info(L"Servidor: " + paths.root + L" (baixar artefatos=" +
                BoolText(g_cfg.GetBool(L"Servidor", L"DownloadServerArtifacts", false)) + L")");
     g_log.Warn(L"Um backup sera criado antes das alteracoes. E possivel reverter com --rollback.");
@@ -1549,7 +1561,7 @@ int ApplyAll(const Options& opt) {
     bool reboot = false;
     std::wstring error;
 
-    g_log.Section(L"1/6 Firewall");
+    g_log.Section(L"1/7 Firewall");
     if (!opt.dryRun) {
         std::wstring serviceError;
         if (!EnsureFirewallServices(serviceError)) {
@@ -1576,7 +1588,7 @@ int ApplyAll(const Options& opt) {
         }
     }
 
-    g_log.Section(L"2/6 Navegador");
+    g_log.Section(L"2/7 Navegador");
     {
         std::wstring browserError;
         if (!ApplyBrowserPolicies(g_cfg, browserError)) {
@@ -1585,7 +1597,7 @@ int ApplyAll(const Options& opt) {
         }
     }
 
-    g_log.Section(L"3/6 Seguranca");
+    g_log.Section(L"3/7 Seguranca");
     {
         bool securityReboot = false;
         std::wstring securityError;
@@ -1596,7 +1608,7 @@ int ApplyAll(const Options& opt) {
         reboot = reboot || securityReboot;
     }
 
-    g_log.Section(L"4/6 Dependencias");
+    g_log.Section(L"4/7 Dependencias");
     {
         bool depsReboot = false;
         std::wstring depsError;
@@ -1607,7 +1619,18 @@ int ApplyAll(const Options& opt) {
         reboot = reboot || depsReboot;
     }
 
-    g_log.Section(L"5/6 Servidor FiveM");
+    g_log.Section(L"5/7 Ferramentas extras");
+    {
+        bool extrasReboot = false;
+        std::wstring extrasError;
+        if (!InstallExtraTools(g_cfg, extrasReboot, extrasError)) {
+            ++failures;
+            g_log.Error(L"Falha em uma ou mais ferramentas extras. " + extrasError);
+        }
+        reboot = reboot || extrasReboot;
+    }
+
+    g_log.Section(L"6/7 Servidor FiveM");
     {
         bool prepareFolders = g_cfg.GetBool(L"Servidor", L"PrepareServerFolders", true);
         bool downloadConfigured =
@@ -1625,7 +1648,7 @@ int ApplyAll(const Options& opt) {
     }
 
     if (!opt.dryRun && g_cfg.GetBool(L"Geral", L"VerifyAfterApply", true)) {
-        g_log.Section(L"6/6 Verificacao");
+        g_log.Section(L"7/7 Verificacao");
         Report verify;
         RunDiagnostics(verify, true);
         SaveReport(verify);
