@@ -652,8 +652,14 @@ void RunDiagnostics(Report& report, bool postApply) {
     GetIeEscInfo(esc);
     report.Info(L"IE Enhanced Security: administradores=" + std::wstring(esc.admins ? L"ativo" : L"inativo") +
                 L", usuarios=" + std::wstring(esc.users ? L"ativo" : L"inativo") + L".");
-    if (!esc.admins && !g_cfg.GetBool(L"Navegador", L"DisableIEESC", false)) {
-        report.Warn(L"IE ESC esta desativado para administradores; o padrao seguro e manter ativo.");
+    if (g_cfg.GetBool(L"Navegador", L"DisableIEESC", true)) {
+        if (esc.admins || esc.users) {
+            report.Info(L"IE ESC ativo; sera desativado ao aplicar (requer logoff/logon).");
+        } else {
+            report.Ok(L"IE Enhanced Security desativado para administradores e usuarios.");
+        }
+    } else {
+        report.Info(L"DisableIEESC=0: IE Enhanced Security sera mantido ativo.");
     }
 
     bool guestDisabled = false;

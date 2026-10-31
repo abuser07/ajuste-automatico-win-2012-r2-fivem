@@ -93,7 +93,7 @@ revise principalmente:
 - `[Rede] TxAdminPort` — padrão `40120`, restrito a `LocalSubnet`;
 - `[Rede] EnsureFirewallEnabled` — padrão `0`; não ligue sem acesso alternativo ao RDP;
 - `[Seguranca] DisableLegacyTLS` — padrão `0`; ativar pode quebrar aplicativos antigos;
-- `[Navegador] DisableIEESC` — padrão `0`; manter ativo é mais seguro;
+- `[Navegador] DisableIEESC` — padrão `1`; desativa o IE ESC (administradores e usuários);
 - `[Dependencias] InstallDotNet48` — padrão `0`;
 - `[Servidor] ServerRoot` — padrão `C:\FXServer`;
 - `[Geral] AllowUnsupportedOS` — padrão `0`; não use em produção.

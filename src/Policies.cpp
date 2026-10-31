@@ -183,14 +183,16 @@ static bool ApplyIEPolicies(const Config& cfg, RegWriter& writer, const std::wst
                               L"IE: nao armazenar paginas SSL em cache");
     }
 
-    if (cfg.GetBool(L"Navegador", L"DisableIEESC", false)) {
+    if (cfg.GetBool(L"Navegador", L"DisableIEESC", true)) {
         const wchar_t* adminGuid = L"{A509B1A7-37EF-4B3F-8CFC-4F3A74704073}";
-        allOk &= writer.Dword(HKEY_LOCAL_MACHINE,
-                              std::wstring(L"SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\") + adminGuid,
-                              L"IsInstalled", 0,
+        const wchar_t* usersGuid = L"{A509B1A8-37EF-4B3F-8CFC-4F3A74704073}";
+        const std::wstring base = L"SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\";
+        allOk &= writer.Dword(HKEY_LOCAL_MACHINE, base + adminGuid, L"IsInstalled", 0,
                               L"IE ESC: desativado para administradores (requer logoff)");
+        allOk &= writer.Dword(HKEY_LOCAL_MACHINE, base + usersGuid, L"IsInstalled", 0,
+                              L"IE ESC: desativado para usuarios (requer logoff)");
     } else {
-        g_log.Info(L"IE Enhanced Security mantido (altere DisableIEESC=1 para desativar).");
+        g_log.Info(L"DisableIEESC=0: IE Enhanced Security sera mantido ativo.");
     }
 
     if (cfg.GetBool(L"Navegador", L"AddTrustedSites", true)) {

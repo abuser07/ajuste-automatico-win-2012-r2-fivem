@@ -89,8 +89,9 @@ EnablePowerShellScriptBlockLogging=0
 
 [Navegador]
 ConfigureBrowsers=1
-; Desativar o IE Enhanced Security e uma decisao de usabilidade; 0 = manter seguro.
-DisableIEESC=0
+; Desativa o IE Enhanced Security (administradores e usuarios) para facilitar
+; downloads e navegacao no servidor. Requer logoff/logon. 0 = manter ativo.
+DisableIEESC=1
 SetIETls12=1
 ; Bitmask do IE: TLS1.1=0x200, TLS1.2=0x800. 0xA00 = TLS1.1 + TLS1.2.
 IEProtocols=0xA00

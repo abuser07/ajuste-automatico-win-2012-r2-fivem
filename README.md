@@ -289,7 +289,7 @@ Não desative `RequireSignedDependencies` sem substituir as URLs por fontes conf
 | Chave | Padrão | Descrição |
 |---|---:|---|
 | `ConfigureBrowsers` | `1` | Aplica políticas de navegador. |
-| `DisableIEESC` | `0` | Desativa o IE Enhanced Security. Mantenha `0` para maior segurança. |
+| `DisableIEESC` | `1` | Desativa o IE Enhanced Security (administradores e usuários). Requer logoff/logon. Use `0` para manter ativo. |
 | `SetIETls12` | `1` | Habilita TLS 1.2 no IE. |
 | `IEProtocols` | `0xA00` | Bitmask do IE: TLS 1.1 (`0x200`) + TLS 1.2 (`0x800`). |
 | `IEHomePage` | vazio | Página inicial. Vazio usa `http://localhost:<TxAdminPort>/`. |
@@ -365,8 +365,8 @@ O estado ligado/desligado dos perfis de firewall é preservado, a menos que
 
 ### Navegadores
 
-- IE: página inicial, TLS 1.2, revogação de certificados, sites confiáveis e opção de
-  desativar o IE ESC;
+- IE: página inicial, TLS 1.2, revogação de certificados, sites confiáveis e IE
+  Enhanced Security desativado (administradores e usuários) por padrão;
 - Chrome/Edge: página inicial, TLS mínimo 1.2, Safe Browsing ativo e modo segundo plano
   desativado;
 - Firefox: `policies.json` com página inicial, TLS mínimo 1.2, telemetria desativada e
@@ -552,9 +552,9 @@ Nunca exponha o txAdmin diretamente sem proteção.
 
 ### IE ESC ou políticas de navegador
 
-`DisableIEESC=0` mantém o IE Enhanced Security ativo. Para desativar, altere para `1`
-e faça logoff/logon. Políticas de Chrome/Edge/Firefox só são aplicadas se o navegador
-for detectado.
+`DisableIEESC=1` desativa o IE Enhanced Security para administradores e usuários;
+faça logoff/logon para que a mudança tenha efeito. Para manter ativo, altere para `0`.
+Políticas de Chrome/Edge/Firefox só são aplicadas se o navegador for detectado.
 
 ---
 
