@@ -163,7 +163,7 @@ static bool ApplyIEPolicies(const Config& cfg, RegWriter& writer, const std::wst
                           L"RunOnceComplete", 1, L"IE: RunOnceComplete=1");
 
     if (cfg.GetBool(L"Navegador", L"SetIETls12", true)) {
-        DWORD protocols = cfg.GetDword(L"Navegador", L"IEProtocols", 0xA00);
+        DWORD protocols = cfg.GetDword(L"Navegador", L"IEProtocols", 0xAA0);
         if ((protocols & 0x800) == 0) protocols |= 0x800;
         allOk &= writer.Dword(HKEY_CURRENT_USER,
                               L"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",

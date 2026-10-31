@@ -319,7 +319,7 @@ Authenticode válida.
 | `ConfigureBrowsers` | `1` | Aplica políticas de navegador. |
 | `DisableIEESC` | `1` | Desativa o IE Enhanced Security (administradores e usuários). Requer logoff/logon. Use `0` para manter ativo. |
 | `SetIETls12` | `1` | Habilita TLS 1.2 no IE. |
-| `IEProtocols` | `0xA00` | Bitmask do IE: TLS 1.1 (`0x200`) + TLS 1.2 (`0x800`). |
+| `IEProtocols` | `0xAA0` | Bitmask do IE: SSL 3.0 (`0x20`) + TLS 1.0 (`0x80`) + TLS 1.1 (`0x200`) + TLS 1.2 (`0x800`). |
 | `IEHomePage` | vazio | Página inicial. Vazio usa `http://localhost:<TxAdminPort>/`. |
 | `AddTrustedSites` | `1` | Adiciona domínios à zona confiável do IE. |
 | `TrustedSites` | `cfx.re,fivem.net,runtime.fivem.net` | Sites confiáveis. |

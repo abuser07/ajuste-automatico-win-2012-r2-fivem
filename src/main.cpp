@@ -735,10 +735,24 @@ void RunDiagnostics(Report& report, bool postApply) {
     if (!ieHome.empty()) report.Info(L"IE: pagina inicial atual = " + ieHome);
     DWORD protocols = 0;
     if (GetIeSecureProtocols(protocols)) {
-        if ((protocols & 0x800) != 0) report.Ok(L"IE: TLS 1.2 habilitado.");
-        else report.Warn(L"IE: TLS 1.2 nao habilitado.");
+        std::wstring enabled;
+        if ((protocols & 0x20) != 0) enabled += L"SSL 3.0, ";
+        if ((protocols & 0x80) != 0) enabled += L"TLS 1.0, ";
+        if ((protocols & 0x200) != 0) enabled += L"TLS 1.1, ";
+        if ((protocols & 0x800) != 0) enabled += L"TLS 1.2, ";
+        while (!enabled.empty() && (enabled.back() == L' ' || enabled.back() == L',')) enabled.pop_back();
+        if (enabled.empty()) {
+            report.Warn(L"IE: nenhum protocolo SSL/TLS habilitado (SecureProtocols=0).");
+        } else {
+            report.Info(L"IE: protocolos habilitados = " + enabled + L".");
+        }
+        if ((protocols & 0x800) != 0) {
+            report.Ok(L"IE: TLS 1.2 habilitado.");
+        } else {
+            report.Warn(L"IE: TLS 1.2 nao habilitado (necessario para download.mozilla.org e a maioria dos sites).");
+        }
     } else {
-        report.Warn(L"IE: SecureProtocols nao configurado.");
+        report.Warn(L"IE: SecureProtocols nao configurado (padrao do sistema).");
     }
     CheckBrowserPolicy(report, L"Chrome", FindChromePath(), L"SOFTWARE\\Policies\\Google\\Chrome");
     CheckBrowserPolicy(report, L"Edge", FindEdgePath(), L"SOFTWARE\\Policies\\Microsoft\\Edge");

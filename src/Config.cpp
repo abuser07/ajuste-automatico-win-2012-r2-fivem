@@ -114,8 +114,10 @@ ConfigureBrowsers=1
 ; downloads e navegacao no servidor. Requer logoff/logon. 0 = manter ativo.
 DisableIEESC=1
 SetIETls12=1
-; Bitmask do IE: TLS1.1=0x200, TLS1.2=0x800. 0xA00 = TLS1.1 + TLS1.2.
-IEProtocols=0xA00
+; Bitmask do IE (SecureProtocols): SSL3=0x20, TLS1.0=0x80, TLS1.1=0x200, TLS1.2=0x800.
+; 0xAA0 liga SSL 3.0 + TLS 1.0 + TLS 1.1 + TLS 1.2, como recomenda o proprio IE quando
+; aparece "This page can't be displayed ... Turn on SSL 3.0, TLS 1.0, TLS 1.1 and TLS 1.2".
+IEProtocols=0xAA0
 ; Deixe vazio para usar http://localhost:<TxAdminPort>/
 IEHomePage=
 AddTrustedSites=1
