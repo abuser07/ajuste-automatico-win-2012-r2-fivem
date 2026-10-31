@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# FiveMGuard - artefatos gerados
+/build/
+/logs/
+/reports/
+/backups/
+/deps/
+/config.ini
+*.log
